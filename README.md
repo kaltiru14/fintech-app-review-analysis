@@ -1,4 +1,4 @@
-# Task 1: Customer Experience Analytics for Fintech Apps
+# 📄 Task 1: Customer Experience Analytics for Fintech Apps
 ## Project Overview
 
 This project is part of the Customer Experience Analytics for Fintech Apps challenge.
@@ -90,11 +90,74 @@ This will create data/clean_reviews.csv with:
 - Preprocessed dataset ready for Task 2 (Sentiment & Thematic Analysis)
 - Repository is organized and ready for GitHub submission
 - Meets Task 1 KPIs: clean CSV, minimum 1,200 reviews, clear folder structure
-## Next Steps
-- Task 2: Sentiment Analysis and Thematic Keyword Extraction
-- Task 3: Store cleaned data in PostgreSQL
-- Task 4: Insights, Visualization, and Recommendations
+
 ## References
 - [google-play-scraper PyPI](https://pypi.org/project/google-play-scraper/)
 - [pandas Documentation](https://pandas.pydata.org/pandas-docs/stable/)
 
+📄 Task 2: Sentiment and Thematic Analysis
+## Overview
+Task 2 focuses on analyzing customer reviews scraped from the Google Play Store to:
+1. Quantify sentiment (positive, negative, neutral)
+2. Identify recurring themes to uncover satisfaction drivers and pain points for each bank’s mobile app
+
+This analysis builds on the cleaned dataset from Task 1 (clean_reviews.csv) and produces actionable insights for fintech stakeholders.
+
+### Pipeline & Methodology
+#### 1️⃣ Sentiment Analysis
+- Used VADER Sentiment Analyzer from NLTK for English text.
+- Steps:
+    - Compute compound sentiment score per review
+    - Convert score to sentiment label:
+        - positive → compound ≥ 0.05
+        - negative → compound ≤ -0.05
+        - neutral → otherwise
+
+- Aggregated sentiment by bank and rating for comparison.
+
+#### 2️⃣ Preprocessing for Thematic Analysis
+- Converted text to lowercase
+- Tokenized and lemmatized using spaCy
+- Removed stopwords and non-alphabetic tokens
+- Cleaned text saved as clean_text for TF-IDF analysis
+#### 3️⃣ Thematic Analysis (Keyword & Rule-Based Clustering)
+- Extracted keywords and n-grams using TF-IDF (top 100 features)
+- Manually grouped recurring keywords into 5 themes:
+
+| Theme                       | Keywords / Examples                           |
+| --------------------------- | --------------------------------------------- |
+| Account Access Issues       | login, password, account, unlock              |
+| Transaction Performance     | transfer, slow, loading, payment, crash       |
+| User Interface & Experience | UI, navigation, button, menu, design          |
+| Customer Support            | support, help, service, response              |
+| Feature Requests            | fingerprint, biometric, feature, update, tool |
+
+- Assigned each review 1–3 relevant themes
+- Reviews without matches labeled as Other
+#### 4️⃣ Output
+- Saved as reviews_sentiment_themes.csv in data/ folder
+- Columns:
+```bash
+review,rating,date,bank,source,sentiment_label,sentiment_score,themes
+```
+- Sample row:
+
+| review                        | rating | date       | bank | sentiment_label | sentiment_score | themes                  |
+| ----------------------------- | ------ | ---------- | ---- | --------------- | --------------- | ----------------------- |
+| "App crashes during transfer" | 2      | 2025-11-20 | CBE  | negative        | -0.6            | Transaction Performance |
+
+#### 5️⃣ Key Achievements & KPIs
+- Sentiment scores computed for 100% of reviews
+- 5 themes identified across all banks
+- Modular pipeline with preprocessing → sentiment → thematic analysis → CSV output
+- Ready for Task 4 visualization and insights
+#### 6️⃣ Next Steps
+- Aggregate sentiment by bank and rating
+- Visualize trends and distributions
+- Identify top drivers and pain points per bank
+- Prepare actionable recommendations for mobile app improvements
+
+### References
+- [VADER Sentiment](https://github.com/cjhutto/vaderSentiment)
+- [spaCy NLP](https://spacy.io/)
+- [scikit-learn TF-IDF](https://scikit-learn.org/stable/modules/generated/sklearn.feature_extraction.text.TfidfVectorizer.html)
