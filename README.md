@@ -161,3 +161,70 @@ review,rating,date,bank,source,sentiment_label,sentiment_score,themes
 - [VADER Sentiment](https://github.com/cjhutto/vaderSentiment)
 - [spaCy NLP](https://spacy.io/)
 - [scikit-learn TF-IDF](https://scikit-learn.org/stable/modules/generated/sklearn.feature_extraction.text.TfidfVectorizer.html)
+## Task 3: Store Cleaned Data in PostgreSQL
+
+In this task, we designed and implemented a relational database to store cleaned and processed Google Play Store reviews for three Ethiopian banks.
+
+### Database Setup
+
+- **Database name:** `bank_reviews`
+- **PostgreSQL version:** (your version, e.g., 16.2)
+- **Python library used:** `psycopg2-binary` for inserting data
+
+### Database Schema
+
+#### 1. banks
+| Column    | Type         | Description                  |
+|-----------|--------------|------------------------------|
+| bank_id   | SERIAL PK    | Primary key for banks        |
+| bank_name | VARCHAR(100) | Name of the bank             |
+| app_name  | VARCHAR(150) | Name of the mobile app       |
+
+#### 2. reviews
+| Column          | Type          | Description                                    |
+|-----------------|---------------|-----------------------------------------------|
+| review_id       | SERIAL PK     | Primary key for reviews                        |
+| bank_id         | INT FK        | Foreign key referencing `banks(bank_id)`      |
+| review_text     | TEXT          | User review text                               |
+| rating          | INT           | Star rating (1–5)                              |
+| review_date     | DATE          | Date of review                                 |
+| sentiment_label | VARCHAR(20)   | Sentiment label (positive, negative, neutral) |
+| sentiment_score | FLOAT         | Sentiment score (-1 to 1)                     |
+| source          | VARCHAR(50)   | Source of review (Google Play)                |
+
+### Data Insertion
+
+- Data from `reviews_sentiment_themes.csv` was inserted using the Python script `insert_reviews.py`.
+- Connection details in the script:
+
+```python
+import psycopg2
+conn = psycopg2.connect(
+    host="localhost",
+    database="bank_reviews",
+    user="postgres",
+    password="your_password"
+)
+```
+- All reviews inserted successfully, totaling over 1,200 entries across all three banks.
+### Verification
+- Count of reviews per bank:
+```sql
+SELECT b.bank_name, COUNT(r.review_id) AS total_reviews
+FROM reviews r
+JOIN banks b ON r.bank_id = b.bank_id
+GROUP BY b.bank_name;
+```
+- Average rating per bank:
+```sql 
+SELECT b.bank_name, AVG(r.rating) AS avg_rating
+FROM reviews r
+JOIN banks b ON r.bank_id = b.bank_id
+GROUP BY b.bank_name;
+```
+- Sample data check:
+```sql
+SELECT * FROM reviews LIMIT 5;
+```
+### SQL Dump
+- A full SQL dump of the database is available in bank_reviews_dump.sql.
