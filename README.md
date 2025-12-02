@@ -228,3 +228,49 @@ SELECT * FROM reviews LIMIT 5;
 ```
 ### SQL Dump
 - A full SQL dump of the database is available in bank_reviews_dump.sql.
+
+# Task 4: Customer Insights and Recommendations
+
+## Overview
+This task focuses on deriving actionable insights from user reviews of Ethiopian bank apps. The analysis uses sentiment and thematic data to identify drivers, pain points, and potential improvements.
+
+## Data
+- Source: `reviews_sentiment_themes.csv` (cleaned and processed reviews from Google Play Store)
+- Columns: `review`, `rating`, `date`, `bank`, `source`, `sentiment_label`, `sentiment_score`, `themes`
+
+## Analysis Steps
+1. **Identify Drivers and Pain Points**  
+   - Drivers: Top positive themes per bank (e.g., fast navigation, customer support)  
+   - Pain Points: Top negative themes per bank (e.g., crashes, account access issues)
+
+2. **Recommendations**  
+   - Suggested improvements based on drivers and pain points for each bank.
+
+3. **Visualizations**  
+   - Sentiment distribution per bank  
+   - Rating distribution per bank  
+   - Keyword/theme word clouds per bank  
+
+4. **Ethical Considerations**  
+   - Some reviews may have bias (e.g., negative skew, selective feedback).  
+   - Insights should be interpreted with caution.
+
+## Key Findings (Example)
+| Bank   | Driver(s)                  | Pain Point(s)               | Suggested Improvements                             |
+|--------|----------------------------|----------------------------|---------------------------------------------------|
+| CBE    | Customer Support, Other    | Account Access Issues       | Improve account login flow; enhance support      |
+| BOA    | User Interface, Other      | Transaction Performance    | Optimize transaction speed; fix recurring bugs  |
+| Dashen | Other, App Experience      | Feature Requests           | Implement requested features; enhance UX         |
+
+## Outputs
+- `outputs/task4_summary.csv` → Summary of drivers, pain points, and recommendations  
+- `outputs/sentiment_distribution.png` → Sentiment distribution plot  
+- `outputs/rating_distribution.png` → Rating distribution plot  
+- `outputs/wordcloud_<bank>.png` → Word cloud for each bank  
+
+## Scripts
+- `scripts/task4-analysis.py` → Python script performing analysis and generating visualizations
+
+## How to Run
+```bash
+python scripts/task4-analysis.py
