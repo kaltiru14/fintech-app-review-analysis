@@ -1,4 +1,4 @@
 pandas
-google-play-scraper
-numpy
-python-dateutil
+nltk
+scikit-learn
+spacy
