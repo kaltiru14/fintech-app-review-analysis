@@ -2,25 +2,30 @@
 
 from dataclasses import dataclass
 from pathlib import Path
+from typing import Dict, List
 
-# Project root
-PROJECT_ROOT = Path(__file__).parent.parent
+# -------------------------------
+# Project paths
+# -------------------------------
+PROJECT_ROOT = Path(__file__).parent
+DATA_PATH = PROJECT_ROOT / "data"
 
-# Path to the cleaned reviews CSV
-DATA_PATH = PROJECT_ROOT / "data" / "reviews_sentiment_themes.csv"
+# Path to specific CSV files
+RAW_CSV = DATA_PATH / "raw_reviews.csv"
+CLEAN_CSV = DATA_PATH / "clean_reviews.csv"
+REVIEWS_CSV = DATA_PATH / "reviews_sentiment_themes.csv"
 
+# -------------------------------
+# Dataclasses for configs
+# -------------------------------
 @dataclass
 class PathsConfig:
-    raw_csv: str = "data/raw_reviews.csv"
-    clean_csv: str = "data/clean_reviews.csv"
+    raw_csv: str = str(RAW_CSV)
+    clean_csv: str = str(CLEAN_CSV)
 
 @dataclass
 class PreprocessConfig:
     date_format: str = "%Y-%m-%d"
-
-
-# config.py (append below previous dataclasses)
-from typing import Dict, List
 
 @dataclass
 class SentimentThemeConfig:
@@ -36,9 +41,6 @@ class SentimentThemeConfig:
                 "Feature Requests": ["fingerprint", "biometric", "feature", "update", "tool"]
             }
 
-from dataclasses import dataclass
-from typing import Dict, List
-
 @dataclass
 class ScraperConfig:
     banks: Dict[str, str] = None  # bank name → URL mapping
@@ -52,13 +54,9 @@ class ScraperConfig:
                 "Dashen Bank": "https://www.example.com/dashenbank/reviews",
             }
 
-# config.py
-
-from pathlib import Path
-
-DATA_PATH = Path(__file__).parent / "data"
-
-# PostgreSQL database config
+# -------------------------------
+# Database config
+# -------------------------------
 DB_CONFIG = {
     "host": "localhost",
     "port": 5432,
