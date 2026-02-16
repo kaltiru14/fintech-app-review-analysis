@@ -2,3 +2,10 @@ pandas
 nltk
 scikit-learn
 spacy
+streamlit
+plotly
+numpy
+beautifulsoup4
+requests
+pytest
+pytest-cov
