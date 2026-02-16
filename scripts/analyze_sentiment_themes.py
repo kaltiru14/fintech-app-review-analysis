@@ -1,22 +1,36 @@
 # scripts/analyze_sentiment_themes.py
 
 import pandas as pd
+import logging
+from typing import List
 from nltk.corpus import stopwords
 from sklearn.feature_extraction.text import TfidfVectorizer
 from vaderSentiment.vaderSentiment import SentimentIntensityAnalyzer
 import spacy
+from config import PathsConfig, SentimentThemeConfig
 
-# Load SpaCy English model
-nlp = spacy.load("en_core_web_sm")
+# -------------------------------
+# Logging Setup
+# -------------------------------
+logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s")
 
-# Load data
-df = pd.read_csv("data/clean_reviews.csv")
+# -------------------------------
+# Load NLP model
+# -------------------------------
+try:
+    nlp = spacy.load("en_core_web_sm")
+except OSError:
+    logging.error("SpaCy English model not found. Run: python -m spacy download en_core_web_sm")
+    raise
 
-# Initialize sentiment analyzer
-analyzer = SentimentIntensityAnalyzer()
+stop_words = set(stopwords.words("english"))
 
-# Step 1: Sentiment Analysis
-def get_sentiment_label(score):
+# -------------------------------
+# Sentiment Functions
+# -------------------------------
+
+def get_sentiment_label(score: float) -> str:
+    """Convert compound score to label"""
     if score >= 0.05:
         return "positive"
     elif score <= -0.05:
@@ -24,37 +38,47 @@ def get_sentiment_label(score):
     else:
         return "neutral"
 
-df["sentiment_score"] = df["review"].apply(lambda x: analyzer.polarity_scores(str(x))["compound"])
-df["sentiment_label"] = df["sentiment_score"].apply(get_sentiment_label)
+def analyze_sentiment(df: pd.DataFrame) -> pd.DataFrame:
+    """Add sentiment score and label to DataFrame"""
+    analyzer = SentimentIntensityAnalyzer()
+    df["sentiment_score"] = df["review"].apply(lambda x: analyzer.polarity_scores(str(x))["compound"])
+    df["sentiment_label"] = df["sentiment_score"].apply(get_sentiment_label)
+    logging.info("Sentiment analysis completed")
+    return df
 
-# Step 2: Preprocessing for Thematic Analysis
-stop_words = set(stopwords.words("english"))
+# -------------------------------
+# Preprocessing for thematic analysis
+# -------------------------------
 
-def preprocess_text(text):
+def preprocess_text(text: str) -> str:
+    """Lowercase, remove stopwords, lemmatize"""
     doc = nlp(str(text).lower())
     tokens = [token.lemma_ for token in doc if token.is_alpha and token.text not in stop_words]
     return " ".join(tokens)
 
-df["clean_text"] = df["review"].apply(preprocess_text)
+def preprocess_reviews(df: pd.DataFrame) -> pd.DataFrame:
+    df["clean_text"] = df["review"].apply(preprocess_text)
+    logging.info("Text preprocessing completed")
+    return df
 
-# Step 3: TF-IDF Keyword Extraction
-vectorizer = TfidfVectorizer(max_features=100, ngram_range=(1,2))
-tfidf_matrix = vectorizer.fit_transform(df["clean_text"])
-keywords = vectorizer.get_feature_names_out()
+# -------------------------------
+# TF-IDF Keyword Extraction
+# -------------------------------
 
-# Step 4: Manual Theme Mapping
-# Map common keywords into 3-5 themes
-themes = {
-    "Account Access Issues": ["login", "password", "account", "unlock"],
-    "Transaction Performance": ["transfer", "slow", "loading", "payment", "crash"],
-    "User Interface & Experience": ["ui", "navigation", "button", "menu", "design"],
-    "Customer Support": ["support", "help", "service", "response"],
-    "Feature Requests": ["fingerprint", "biometric", "feature", "update", "tool"]
-}
+def extract_keywords(df: pd.DataFrame, max_features: int = 100) -> List[str]:
+    vectorizer = TfidfVectorizer(max_features=max_features, ngram_range=(1, 2))
+    vectorizer.fit_transform(df["clean_text"])
+    keywords = vectorizer.get_feature_names_out()
+    logging.info(f"Extracted {len(keywords)} keywords using TF-IDF")
+    return keywords
 
-def assign_theme(text):
+# -------------------------------
+# Theme Assignment
+# -------------------------------
+
+def assign_theme(text: str, config: SentimentThemeConfig) -> str:
     matched_themes = []
-    for theme, kw_list in themes.items():
+    for theme, kw_list in config.themes.items():
         for kw in kw_list:
             if kw in text:
                 matched_themes.append(theme)
@@ -63,12 +87,43 @@ def assign_theme(text):
         matched_themes.append("Other")
     return ", ".join(matched_themes)
 
-df["themes"] = df["clean_text"].apply(assign_theme)
+def map_themes(df: pd.DataFrame, config: SentimentThemeConfig) -> pd.DataFrame:
+    df["themes"] = df["clean_text"].apply(lambda x: assign_theme(x, config))
+    logging.info("Theme mapping completed")
+    return df
 
-# Step 5: Save results
-df[["review", "rating", "date", "bank", "source", "sentiment_label", "sentiment_score", "themes"]].to_csv(
-    "data/reviews_sentiment_themes.csv", index=False
-)
+# -------------------------------
+# Save Results
+# -------------------------------
 
-print("Sentiment and thematic analysis completed!")
-print("Output saved to data/reviews_sentiment_themes.csv")
+def save_results(df: pd.DataFrame, path: str) -> None:
+    try:
+        df[["review", "rating", "date", "bank", "source", "sentiment_label", "sentiment_score", "themes"]].to_csv(path, index=False)
+        logging.info(f"Analysis results saved to {path}")
+    except Exception as e:
+        logging.error(f"Failed to save results: {e}")
+        raise
+
+# -------------------------------
+# Main Execution
+# -------------------------------
+
+def main() -> None:
+    paths = PathsConfig()
+    theme_config = SentimentThemeConfig()
+    
+    try:
+        df = pd.read_csv(paths.clean_csv)
+        logging.info(f"Loaded cleaned reviews: {df.shape[0]} rows")
+    except FileNotFoundError:
+        logging.error(f"Clean CSV not found: {paths.clean_csv}")
+        return
+    
+    df = analyze_sentiment(df)
+    df = preprocess_reviews(df)
+    keywords = extract_keywords(df)
+    df = map_themes(df, theme_config)
+    save_results(df, "data/reviews_sentiment_themes.csv")
+
+if __name__ == "__main__":
+    main()
