@@ -31,25 +31,25 @@ def clean_data(df: pd.DataFrame, date_format: str) -> pd.DataFrame:
     """
     Clean the reviews DataFrame:
     - Drop missing reviews
+    - Strip whitespace
     - Remove duplicates
     - Normalize dates
-    - Strip whitespace
     """
-    # Drop missing
+    # Drop missing reviews
     df = df.dropna(subset=['review'])
-    
-    # Remove duplicates
+
+    # Strip review text first
+    df['review'] = df['review'].str.strip()
+
+    # Remove duplicates after stripping
     df = df.drop_duplicates(subset=['review', 'bank'])
-    
+
     # Normalize dates
     df['date'] = pd.to_datetime(df['date'], errors='coerce').dt.strftime(date_format)
-    
+
     # Remove rows with invalid dates
     df = df.dropna(subset=['date'])
-    
-    # Strip review text
-    df['review'] = df['review'].str.strip()
-    
+
     logging.info(f"Cleaned data: {df.shape[0]} rows after preprocessing")
     return df
 

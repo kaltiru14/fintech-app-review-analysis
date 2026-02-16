@@ -1,5 +1,13 @@
 # config.py
+
 from dataclasses import dataclass
+from pathlib import Path
+
+# Project root
+PROJECT_ROOT = Path(__file__).parent.parent
+
+# Path to the cleaned reviews CSV
+DATA_PATH = PROJECT_ROOT / "data" / "reviews_sentiment_themes.csv"
 
 @dataclass
 class PathsConfig:
@@ -44,3 +52,17 @@ class ScraperConfig:
                 "Dashen Bank": "https://www.example.com/dashenbank/reviews",
             }
 
+# config.py
+
+from pathlib import Path
+
+DATA_PATH = Path(__file__).parent / "data"
+
+# PostgreSQL database config
+DB_CONFIG = {
+    "host": "localhost",
+    "port": 5432,
+    "dbname": "bank_reviews",
+    "user": "postgres",
+    "password": "postgres123"
+}

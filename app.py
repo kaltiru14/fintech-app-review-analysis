@@ -40,6 +40,27 @@ filtered_df = df[
 ]
 
 # -------------------------------
+# KPI Metrics
+# -------------------------------
+
+st.subheader("Key Metrics")
+
+col1, col2, col3 = st.columns(3)
+
+col1.metric("Total Reviews", len(filtered_df))
+
+positive_pct = round(
+    (filtered_df["sentiment_label"] == "positive").mean() * 100, 1
+)
+
+negative_pct = round(
+    (filtered_df["sentiment_label"] == "negative").mean() * 100, 1
+)
+
+col2.metric("Positive %", f"{positive_pct}%")
+col3.metric("Negative %", f"{negative_pct}%")
+
+# -------------------------------
 # Sentiment Distribution
 # -------------------------------
 
@@ -112,6 +133,7 @@ st.plotly_chart(fig3, use_container_width=True)
 st.subheader("Reviews Over Time")
 
 if "date" in filtered_df.columns:
+    filtered_df = filtered_df.copy()
     filtered_df["date"] = pd.to_datetime(filtered_df["date"], errors="coerce")
     time_data = (
         filtered_df.groupby(filtered_df["date"].dt.date)
@@ -134,3 +156,10 @@ if "date" in filtered_df.columns:
 
 st.subheader("Raw Data")
 st.dataframe(filtered_df.head(50))
+
+st.download_button(
+    label="Download Filtered Data",
+    data=filtered_df.to_csv(index=False),
+    file_name="filtered_reviews.csv",
+    mime="text/csv"
+)

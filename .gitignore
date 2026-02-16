@@ -1,5 +1,4 @@
 __pycache__/
 *.pyc
-data/*.csv
 .env
 .ipynb_checkpoints/
