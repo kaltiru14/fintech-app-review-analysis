@@ -1,20 +1,78 @@
+# scripts/preprocess_reviews.py
+
 import pandas as pd
+import logging
+from config import PathsConfig, PreprocessConfig
+from typing import Tuple
 
-df = pd.read_csv("data/raw_reviews.csv")
+# -------------------------------
+# Setup Logging
+# -------------------------------
+logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s")
 
-# Drop missing reviews
-df = df.dropna(subset=['review'])
+# -------------------------------
+# Functions
+# -------------------------------
 
-# Remove duplicates
-df = df.drop_duplicates(subset=['review', 'bank'])
+def load_data(path: str) -> pd.DataFrame:
+    """Load CSV into DataFrame"""
+    try:
+        df = pd.read_csv(path)
+        logging.info(f"Loaded data from {path} with {df.shape[0]} rows")
+        return df
+    except FileNotFoundError:
+        logging.error(f"File not found: {path}")
+        raise
+    except Exception as e:
+        logging.error(f"Error reading CSV: {e}")
+        raise
 
-# Normalize date
-df['date'] = pd.to_datetime(df['date']).dt.strftime("%Y-%m-%d")
+def clean_data(df: pd.DataFrame, date_format: str) -> pd.DataFrame:
+    """
+    Clean the reviews DataFrame:
+    - Drop missing reviews
+    - Remove duplicates
+    - Normalize dates
+    - Strip whitespace
+    """
+    # Drop missing
+    df = df.dropna(subset=['review'])
+    
+    # Remove duplicates
+    df = df.drop_duplicates(subset=['review', 'bank'])
+    
+    # Normalize dates
+    df['date'] = pd.to_datetime(df['date'], errors='coerce').dt.strftime(date_format)
+    
+    # Remove rows with invalid dates
+    df = df.dropna(subset=['date'])
+    
+    # Strip review text
+    df['review'] = df['review'].str.strip()
+    
+    logging.info(f"Cleaned data: {df.shape[0]} rows after preprocessing")
+    return df
 
-# Clean whitespace
-df['review'] = df['review'].str.strip()
+def save_data(df: pd.DataFrame, path: str) -> None:
+    """Save cleaned DataFrame to CSV"""
+    try:
+        df.to_csv(path, index=False)
+        logging.info(f"Saved cleaned dataset to {path}")
+    except Exception as e:
+        logging.error(f"Failed to save CSV: {e}")
+        raise
 
-# Save clean dataset
-df.to_csv("data/clean_reviews.csv", index=False)
+# -------------------------------
+# Main Execution
+# -------------------------------
 
-print(f"Cleaned dataset saved: {df.shape[0]} rows")
+def main() -> None:
+    paths = PathsConfig()
+    config = PreprocessConfig()
+    
+    df = load_data(paths.raw_csv)
+    df_clean = clean_data(df, config.date_format)
+    save_data(df_clean, paths.clean_csv)
+
+if __name__ == "__main__":
+    main()
