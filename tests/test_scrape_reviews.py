@@ -1,66 +1,98 @@
-import pytest
-from unittest.mock import patch
+"""
+scrape_reviews.py
+
+Scrape reviews from Google Play Store for specified bank apps
+using google_play_scraper Python library.
+"""
+
+import logging
 import pandas as pd
-from scripts.scrape_reviews import fetch_page, parse_reviews, scrape_bank_reviews, scrape_all_banks
-from config import ScraperConfig
+from pathlib import Path
+from typing import List, Dict
+from google_play_scraper import Sort, reviews
+from google_play_scraper.exceptions import NotFoundError
+import time
 
-# -------------------------------
-# Test fetch_page
-# -------------------------------
-def test_fetch_page_success():
-    # Mock requests.get to return a dummy response
-    with patch("scripts.scrape_reviews.requests.get") as mock_get:
-        mock_get.return_value.status_code = 200
-        mock_get.return_value.text = "<html>dummy content</html>"
-        html = fetch_page("http://dummyurl.com")
-        assert html == "<html>dummy content</html>"
 
-def test_fetch_page_failure():
-    with patch("scripts.scrape_reviews.requests.get") as mock_get:
-        mock_get.side_effect = Exception("Network error")
-        html = fetch_page("http://dummyurl.com")
-        assert html == ""  # should return empty string on failure
+# Setup logging
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s [%(levelname)s] %(message)s"
+)
 
-# -------------------------------
-# Test parse_reviews
-# -------------------------------
-def test_parse_reviews_empty_html():
-    result = parse_reviews("", "TestBank")
-    assert result == []
+# Output path
+RAW_CSV_PATH = Path(__file__).parent.parent / "data" / "raw_reviews.csv"
 
-def test_parse_reviews_mock_html():
-    html = """
-    <div class="review">
-        <p class="text">Great app!</p>
-        <span class="rating">5</span>
-        <span class="date">2026-02-16</span>
-    </div>
+# App info mapping
+APPS = {
+    "CBE": "com.combanketh.mobilebanking",
+    "BOA": "com.boa.boaMobileBanking",
+    "Dashen": "com.dashen.dashensuperapp"
+}
+
+
+def fetch_reviews_for_app(app_id: str, n_reviews: int = 500):
     """
-    result = parse_reviews(html, "TestBank")
-    assert len(result) == 1
-    assert result[0]["review"] == "Great app!"
-    assert result[0]["rating"] == "5"
-    assert result[0]["date"] == "2026-02-16"
-    assert result[0]["bank"] == "TestBank"
+    Fetch reviews safely with error handling.
+    """
+    all_reviews = []
+    logging.info(f"Fetching reviews for {app_id} ...")
 
-# -------------------------------
-# Test scrape_bank_reviews
-# -------------------------------
-@patch("scripts.scrape_reviews.fetch_page")
-@patch("scripts.scrape_reviews.parse_reviews")
-def test_scrape_bank_reviews(mock_parse, mock_fetch):
-    mock_fetch.return_value = "<html>dummy</html>"
-    mock_parse.return_value = [{"review": "ok", "bank": "Bank", "rating": 5, "date": "2026-02-16", "source": "Web"}]
-    reviews = scrape_bank_reviews("Bank", "http://dummyurl.com", pages=2)
-    assert len(reviews) == 2  # 1 review per page × 2 pages
+    try:
+        result, _ = reviews(
+            app_id,
+            lang="en",
+            country="us",
+            sort=Sort.NEWEST,
+            count=n_reviews
+        )
 
-# -------------------------------
-# Test scrape_all_banks
-# -------------------------------
-@patch("scripts.scrape_reviews.scrape_bank_reviews")
-def test_scrape_all_banks(mock_scrape_bank):
-    mock_scrape_bank.return_value = [{"review": "ok", "bank": "Bank", "rating": 5, "date": "2026-02-16", "source": "Web"}]
-    config = ScraperConfig(banks={"Bank1": "url1", "Bank2": "url2"}, pages_per_bank=1)
-    df = scrape_all_banks(config)
-    assert isinstance(df, pd.DataFrame)
-    assert df.shape[0] == 2  # one review per bank
+        if not result:
+            logging.warning(f"No reviews returned for {app_id}")
+            return []
+
+        for r in result:
+            try:
+                all_reviews.append({
+                    "review": r.get("content", ""),
+                    "rating": r.get("score", None),
+                    "date": r.get("at").strftime("%Y-%m-%d") if r.get("at") else None,
+                    "bank": None,
+                    "source": "Google Play"
+                })
+            except Exception as e:
+                logging.warning(f"Malformed review skipped: {e}")
+                continue
+
+        logging.info(f"Fetched {len(all_reviews)} reviews for {app_id}")
+
+    except NotFoundError:
+        logging.error(f"App not found: {app_id}")
+        return []
+
+    except Exception as e:
+        logging.error(f"Failed to fetch reviews for {app_id}: {e}")
+        return []
+
+    time.sleep(2)  # Prevent rate limiting
+    return all_reviews
+
+
+def main():
+    all_rows = []
+    
+    for bank_name, app_id in APPS.items():
+        bank_reviews = fetch_reviews_for_app(app_id, n_reviews=500)
+        for rv in bank_reviews:
+            rv["bank"] = bank_name
+            all_rows.append(rv)
+
+    df = pd.DataFrame(all_rows)
+    
+    # Save
+    df.to_csv(RAW_CSV_PATH, index=False)
+    logging.info(f"Saved raw reviews to {RAW_CSV_PATH}")
+
+
+if __name__ == "__main__":
+    main()

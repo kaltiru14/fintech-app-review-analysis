@@ -22,6 +22,7 @@ REVIEWS_CSV = DATA_PATH / "reviews_sentiment_themes.csv"
 class PathsConfig:
     raw_csv: str = str(RAW_CSV)
     clean_csv: str = str(CLEAN_CSV)
+    reviews_csv: str = str(REVIEWS_CSV)
 
 @dataclass
 class PreprocessConfig:
@@ -41,18 +42,14 @@ class SentimentThemeConfig:
                 "Feature Requests": ["fingerprint", "biometric", "feature", "update", "tool"]
             }
 
-@dataclass
-class ScraperConfig:
-    banks: Dict[str, str] = None  # bank name → URL mapping
-    pages_per_bank: int = 5
-
-    def __post_init__(self):
-        if self.banks is None:
-            self.banks = {
-                "Abay Bank": "https://www.example.com/abaybank/reviews",
-                "Awash Bank": "https://www.example.com/awashbank/reviews",
-                "Dashen Bank": "https://www.example.com/dashenbank/reviews",
-            }
+# -------------------------------
+# Bank URLs (used for scraping)
+# -------------------------------
+BANK_APPS: Dict[str, str] = {
+    "Commercial Bank of Ethiopia (CBE)": "https://play.google.com/store/apps/details?id=com.combanketh.mobilebanking",
+    "Bank of Abyssinia (BOA)": "https://play.google.com/store/apps/details?id=com.boa.boaMobileBanking",
+    "Dashen Bank": "https://play.google.com/store/apps/details?id=com.dashen.dashensuperapp"
+}
 
 # -------------------------------
 # Database config

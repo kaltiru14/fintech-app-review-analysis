@@ -1,11 +1,9 @@
 # scripts/scrape_reviews.py
 
-import requests
-from bs4 import BeautifulSoup
-import pandas as pd
 import logging
-from typing import List, Dict
-from config import PathsConfig, ScraperConfig
+import pandas as pd
+from google_play_scraper import reviews, Sort
+from config import PathsConfig, BANK_APPS
 
 # -------------------------------
 # Logging Setup
@@ -13,59 +11,54 @@ from config import PathsConfig, ScraperConfig
 logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s")
 
 # -------------------------------
-# Scraper Functions
+# Helper: Extract App ID
 # -------------------------------
+def extract_app_id(url: str) -> str:
+    return url.split("id=")[-1]
 
-def fetch_page(url: str) -> str:
-    """Fetch HTML content from a URL"""
-    try:
-        response = requests.get(url, timeout=10)
-        response.raise_for_status()
-        logging.info(f"Fetched URL: {url}")
-        return response.text
-    except Exception as e:
-        logging.error(f"Failed to fetch {url}: {e}")
-        return ""
+# -------------------------------
+# Scraper Function (REAL SCRAPER)
+# -------------------------------
+def scrape_all_banks() -> pd.DataFrame:
+    all_reviews = []
 
-def parse_reviews(html: str, bank: str) -> List[Dict]:
-    """Extract reviews from HTML"""
-    if not html:
-        return []
-    soup = BeautifulSoup(html, "html.parser")
-    review_elements = soup.find_all("div", class_="review")  # adjust per site
-    reviews = []
-    for rev in review_elements:
-        text = rev.find("p", class_="text").get_text(strip=True) if rev.find("p", class_="text") else ""
-        rating = rev.find("span", class_="rating").get_text(strip=True) if rev.find("span", class_="rating") else None
-        date = rev.find("span", class_="date").get_text(strip=True) if rev.find("span", class_="date") else None
-        if text:  # only store non-empty reviews
-            reviews.append({
+    for bank, url in BANK_APPS.items():
+        logging.info(f"Scraping reviews for {bank}")
+
+        app_id = extract_app_id(url)
+
+        bank_reviews = []
+        continuation_token = None
+
+        while len(bank_reviews) < 400:
+            result, continuation_token = reviews(
+                app_id,
+                lang="en",
+                country="et",
+                sort=Sort.NEWEST,
+                count=200,
+                continuation_token=continuation_token
+            )
+
+            bank_reviews.extend(result)
+
+            if not continuation_token:
+                break  # no more reviews available
+
+        # Trim to exactly 400 if slightly over
+        bank_reviews = bank_reviews[:400]
+
+        logging.info(f"Final total for {bank}: {len(bank_reviews)}")
+
+        for r in bank_reviews:
+            all_reviews.append({
                 "bank": bank,
-                "review": text,
-                "rating": rating,
-                "date": date,
-                "source": "Web"
+                "review": r["content"],
+                "rating": r["score"],
+                "date": r["at"],
+                "source": "Google Play"
             })
-    logging.info(f"Parsed {len(reviews)} reviews for {bank}")
-    return reviews
 
-def scrape_bank_reviews(bank: str, url: str, pages: int) -> List[Dict]:
-    """Scrape multiple pages for a bank"""
-    all_reviews = []
-    for page in range(1, pages + 1):
-        page_url = f"{url}?page={page}"
-        html = fetch_page(page_url)
-        reviews = parse_reviews(html, bank)
-        all_reviews.extend(reviews)
-    logging.info(f"Total reviews scraped for {bank}: {len(all_reviews)}")
-    return all_reviews
-
-def scrape_all_banks(config: ScraperConfig) -> pd.DataFrame:
-    """Scrape all banks from config"""
-    all_reviews = []
-    for bank, url in config.banks.items():
-        bank_reviews = scrape_bank_reviews(bank, url, config.pages_per_bank)
-        all_reviews.extend(bank_reviews)
     df = pd.DataFrame(all_reviews)
     logging.info(f"Total reviews scraped for all banks: {df.shape[0]}")
     return df
@@ -73,25 +66,17 @@ def scrape_all_banks(config: ScraperConfig) -> pd.DataFrame:
 # -------------------------------
 # Save Data
 # -------------------------------
-
-def save_reviews(df: pd.DataFrame, path: str) -> None:
-    try:
-        df.to_csv(path, index=False)
-        logging.info(f"Scraped reviews saved to {path}")
-    except Exception as e:
-        logging.error(f"Failed to save reviews: {e}")
-        raise
+def save_reviews(df: pd.DataFrame, paths: PathsConfig):
+    df.to_csv(paths.raw_csv, index=False)
+    logging.info(f"Scraped reviews saved to {paths.raw_csv}")
 
 # -------------------------------
 # Main Execution
 # -------------------------------
-
-def main() -> None:
+def main():
     paths = PathsConfig()
-    config = ScraperConfig()
-    
-    df = scrape_all_banks(config)
-    save_reviews(df, paths.raw_csv)
+    df = scrape_all_banks()
+    save_reviews(df, paths)
 
 if __name__ == "__main__":
     main()
